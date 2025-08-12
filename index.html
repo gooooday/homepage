@@ -5,20 +5,42 @@
   const { createClient } = supabase;
   const supabaseUrl = 'https://wybsnmdkzhzaijqzjvwt.supabase.co';
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5YnNubWRremh6YWlqcXpqdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODM2NDMsImV4cCI6MjA3MDU1OTY0M30.rSKs_GPvKNMobCwm05AJzvRthctWXQ698yioiN855zY';
-  const client = createClient(supabaseUrl, supabaseKey);
+   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // 获取所有照片
   async function loadPhotos() {
-    const { data, error } = await client.from('photos').select('*').order('uploaded_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     if (error) {
       console.error(error);
       return;
     }
+
     const container = document.getElementById('photo-list');
-    container.innerHTML = data.map(p => `<img src="${p.image_url}" alt="${p.title}" style="max-width:200px;">`).join('');
+    container.innerHTML = '';
+    data.forEach(photo => {
+      const img = document.createElement('img');
+      img.src = photo.url;
+      img.alt = photo.title;
+      img.style.width = '200px';
+      container.appendChild(img);
+    });
   }
 
   loadPhotos();
+
+  async function uploadPhoto(file) {
+  const { data, error } = await supabase
+    .storage
+    .from('photos-bucket')
+    .upload(`public/${file.name}`, file);
+
+  if (error) console.error(error);
+  else console.log('上传成功', data);
+}
+
 </script>
 
 <div id="photo-list"></div>
