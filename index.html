@@ -6,6 +6,127 @@
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5YnNubWRremh6YWlqcXpqdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODM2NDMsImV4cCI6MjA3MDU1OTY0M30.rSKs_GPvKNMobCwm05AJzvRthctWXQ698yioiN855zY"; 
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </script>
+<script>
+  // 树形菜单展开/收起
+  function toggleMenu(element) {
+    element.classList.toggle('expanded');
+    const submenu = element.nextElementSibling;
+    if (submenu) submenu.classList.toggle('open');
+  }
+
+  // 相册数据
+  let albums = {
+    all: [],
+    nature: [],
+    life: [],
+    portrait: [],
+    "2025": [],
+    "2024": []
+  };
+
+  // 拉取全部照片（直接从 Supabase 数据库）
+  async function fetchPhotos() {
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .order('uploaded_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    albums.all = data.map(row => {
+      const { data: urlData } = supabase.storage
+        .from('photos')
+        .getPublicUrl(row.file_name);
+      return {
+        title: row.description || row.file_name,
+        url: urlData.publicUrl
+      };
+    });
+
+    albums.nature = albums.all.filter(x => x.title.includes('nature') || x.title.includes('自然'));
+    albums.life = albums.all.filter(x => x.title.includes('life') || x.title.includes('生活'));
+    albums.portrait = albums.all.filter(x => x.title.includes('portrait') || x.title.includes('人像'));
+    albums["2025"] = albums.all.filter(x => x.title.includes('2025'));
+    albums["2024"] = albums.all.filter(x => x.title.includes('2024'));
+
+    renderPhotos('all');
+  }
+
+  // 展示相册
+  function showAlbum(album) {
+    let albumTitle = {
+      all: "全部照片展示",
+      nature: "自然风光照片",
+      life: "生活纪实照片",
+      portrait: "人像照片",
+      "2025": "2025年照片",
+      "2024": "2024年照片"
+    };
+    document.querySelector("#album-title h2").textContent = albumTitle[album] || "照片展示";
+    renderPhotos(album);
+  }
+
+  // 渲染照片列表
+  function renderPhotos(album) {
+    const list = document.getElementById("photo-list");
+    list.innerHTML = "";
+    (albums[album] || []).forEach(photo => {
+      const div = document.createElement("div");
+      div.className = "photo-item";
+      div.innerHTML = `
+        <img src="${photo.url}" alt="${photo.title}" onclick="previewPhoto('${photo.url}')">
+        <span class="photo-title">${photo.title}</span>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // 上传照片（直接存到 Supabase）
+  async function handleFileUpload(event) {
+    const files = event.target.files;
+    for (let file of files) {
+      const fileName = Date.now() + "_" + file.name;
+
+      // 1. 上传到 Storage
+      const { error: uploadError } = await supabase.storage
+        .from('photos')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        alert('上传失败：' + uploadError.message);
+        return;
+      }
+
+      // 2. 保存到数据库
+      const { error: insertError } = await supabase
+        .from('photos')
+        .insert([{ file_name: fileName, description: file.name }]);
+
+      if (insertError) {
+        alert('保存信息失败：' + insertError.message);
+        return;
+      }
+    }
+
+    alert("上传成功！");
+    fetchPhotos(); // 刷新列表
+  }
+
+  // 预览照片
+  function previewPhoto(src) {
+    document.getElementById("preview-img").src = src;
+    document.getElementById("preview-modal").style.display = "flex";
+  }
+  function closePreview() {
+    document.getElementById("preview-modal").style.display = "none";
+  }
+
+  // 初始加载
+  fetchPhotos();
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
