@@ -1,10 +1,28 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+<script src="https://unpkg.com/@supabase/supabase-js"></script>
 <script>
-  const SUPABASE_URL = "https://wybsnmdkzhzaijqzjvwt.supabase.co"; 
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5YnNubWRremh6YWlqcXpqdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODM2NDMsImV4cCI6MjA3MDU1OTY0M30.rSKs_GPvKNMobCwm05AJzvRthctWXQ698yioiN855zY"; 
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { createClient } = supabase;
+  const supabaseUrl = 'https://wybsnmdkzhzaijqzjvwt.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5YnNubWRremh6YWlqcXpqdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODM2NDMsImV4cCI6MjA3MDU1OTY0M30.rSKs_GPvKNMobCwm05AJzvRthctWXQ698yioiN855zY';
+  const client = createClient(supabaseUrl, supabaseKey);
+
+  // 获取所有照片
+  async function loadPhotos() {
+    const { data, error } = await client.from('photos').select('*').order('uploaded_at', { ascending: false });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    const container = document.getElementById('photo-list');
+    container.innerHTML = data.map(p => `<img src="${p.image_url}" alt="${p.title}" style="max-width:200px;">`).join('');
+  }
+
+  loadPhotos();
 </script>
+
+<div id="photo-list"></div>
+  
 <script>
   // 树形菜单展开/收起
   function toggleMenu(element) {
