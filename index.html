@@ -1,522 +1,64 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<script src="https://unpkg.com/@supabase/supabase-js"></script>
-<script>
-  const { createClient } = supabase;
-  const supabaseUrl = 'https://wybsnmdkzhzaijqzjvwt.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5YnNubWRremh6YWlqcXpqdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODM2NDMsImV4cCI6MjA3MDU1OTY0M30.rSKs_GPvKNMobCwm05AJzvRthctWXQ698yioiN855zY';
-   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  async function loadPhotos() {
-    const { data, error } = await supabase
-      .from('photos')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    const container = document.getElementById('photo-list');
-    container.innerHTML = '';
-    data.forEach(photo => {
-      const img = document.createElement('img');
-      img.src = photo.url;
-      img.alt = photo.title;
-      img.style.width = '200px';
-      container.appendChild(img);
-    });
-  }
-
-  loadPhotos();
-
-  async function uploadPhoto(file) {
-  const { data, error } = await supabase
-    .storage
-    .from('photos-bucket')
-    .upload(`public/${file.name}`, file);
-
-  if (error) console.error(error);
-  else console.log('上传成功', data);
-}
-
-</script>
-
-<script>
-  // 树形菜单展开/收起
-  function toggleMenu(element) {
-    element.classList.toggle('expanded');
-    const submenu = element.nextElementSibling;
-    if (submenu) submenu.classList.toggle('open');
-  }
-
-  // 相册数据
-  let albums = {
-    all: [],
-    nature: [],
-    life: [],
-    portrait: [],
-    "2025": [],
-    "2024": []
-  };
-
-  // 拉取全部照片（直接从 Supabase 数据库）
-  async function fetchPhotos() {
-    const { data, error } = await supabase
-      .from('photos')
-      .select('*')
-      .order('uploaded_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    albums.all = data.map(row => {
-      const { data: urlData } = supabase.storage
-        .from('photos')
-        .getPublicUrl(row.file_name);
-      return {
-        title: row.description || row.file_name,
-        url: urlData.publicUrl
-      };
-    });
-
-    albums.nature = albums.all.filter(x => x.title.includes('nature') || x.title.includes('自然'));
-    albums.life = albums.all.filter(x => x.title.includes('life') || x.title.includes('生活'));
-    albums.portrait = albums.all.filter(x => x.title.includes('portrait') || x.title.includes('人像'));
-    albums["2025"] = albums.all.filter(x => x.title.includes('2025'));
-    albums["2024"] = albums.all.filter(x => x.title.includes('2024'));
-
-    renderPhotos('all');
-  }
-
-  // 展示相册
-  function showAlbum(album) {
-    let albumTitle = {
-      all: "全部照片展示",
-      nature: "自然风光照片",
-      life: "生活纪实照片",
-      portrait: "人像照片",
-      "2025": "2025年照片",
-      "2024": "2024年照片"
-    };
-    document.querySelector("#album-title h2").textContent = albumTitle[album] || "照片展示";
-    renderPhotos(album);
-  }
-
-  // 渲染照片列表
-  function renderPhotos(album) {
-    const list = document.getElementById("photo-list");
-    list.innerHTML = "";
-    (albums[album] || []).forEach(photo => {
-      const div = document.createElement("div");
-      div.className = "photo-item";
-      div.innerHTML = `
-        <img src="${photo.url}" alt="${photo.title}" onclick="previewPhoto('${photo.url}')">
-        <span class="photo-title">${photo.title}</span>
-      `;
-      list.appendChild(div);
-    });
-  }
-
-  // 上传照片（直接存到 Supabase）
-  async function handleFileUpload(event) {
-    const files = event.target.files;
-    for (let file of files) {
-      const fileName = Date.now() + "_" + file.name;
-
-      // 1. 上传到 Storage
-      const { error: uploadError } = await supabase.storage
-        .from('photos')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        alert('上传失败：' + uploadError.message);
-        return;
-      }
-
-      // 2. 保存到数据库
-      const { error: insertError } = await supabase
-        .from('photos')
-        .insert([{ file_name: fileName, description: file.name }]);
-
-      if (insertError) {
-        alert('保存信息失败：' + insertError.message);
-        return;
-      }
-    }
-
-    alert("上传成功！");
-    fetchPhotos(); // 刷新列表
-  }
-
-  // 预览照片
-  function previewPhoto(src) {
-    document.getElementById("preview-img").src = src;
-    document.getElementById("preview-modal").style.display = "flex";
-  }
-  function closePreview() {
-    document.getElementById("preview-modal").style.display = "none";
-  }
-
-  // 初始加载
-  fetchPhotos();
-</script>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gooooday - 分享照片主题站</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body {
-      margin: 0;
-      font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      background: #f7f8fa;
-      color: #333;
-    }
-    header {
-      background: linear-gradient(90deg, #5bc6ff 0%, #6c81ff 100%);
-      color: #fff;
-      padding: 24px 36px 16px 36px;
-      font-size: 1.8rem;
-      font-weight: 800;
-      letter-spacing: 2px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .header-actions {
-      display: flex;
-      align-items: center;
-    }
-    .upload-btn {
-      background: #ffd700;
-      color: #333;
-      border: none;
-      border-radius: 32px;
-      padding: 10px 28px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      transition: background 0.2s;
-    }
-    .upload-btn:hover {
-      background: #fff;
-      color: #6c81ff;
-    }
-    .container {
-      display: flex;
-      height: calc(100vh - 110px);
-    }
-    .sidebar {
-      width: 260px;
-      background: #fff;
-      border-right: 1px solid #eee;
-      padding-top: 36px;
-      box-shadow: 2px 0 12px rgba(100,140,255,.04);
-    }
-    nav {
-      height: 100%;
-    }
-    .tree-menu {
-      list-style: none;
-      padding: 0 24px;
-      margin: 0;
-    }
-    .tree-menu > li {
-      margin-bottom: 18px;
-    }
-    .tree-menu .toggle {
-      cursor: pointer;
-      font-weight: 700;
-      padding: 6px 0;
-      display: inline-block;
-      transition: color .2s;
-    }
-    .tree-menu .toggle.expanded {
-      color: #6c81ff;
-    }
-    .tree-menu .submenu {
-      list-style: none;
-      padding-left: 20px;
-      display: none;
-    }
-    .tree-menu .submenu.open {
-      display: block;
-      animation: fadeIn .3s;
-    }
-    .tree-menu .submenu li span {
-      cursor: pointer;
-      display: block;
-      padding: 5px 0;
-      font-size: 1rem;
-      color: #444;
-      transition: color .2s;
-    }
-    .tree-menu .submenu li span:hover {
-      color: #5bc6ff;
-      text-decoration: underline;
-    }
-    main.content {
-      flex: 1;
-      padding: 54px 50px 48px 50px;
-      min-width: 0;
-      background: #f9fbff;
-      overflow-y: auto;
-    }
-    #album-title h2 {
-      color: #6c81ff;
-      font-weight: 700;
-      margin-bottom: 18px;
-      font-size: 2rem;
-    }
-    .photo-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 28px 24px;
-    }
-    .photo-item {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(100,140,255,0.10);
-      padding: 14px;
-      text-align: center;
-      width: 210px;
-      margin-bottom: 16px;
-      position: relative;
-      transition: box-shadow 0.2s;
-    }
-    .photo-item:hover {
-      box-shadow: 0 8px 32px rgba(100,140,255,0.14);
-    }
-    .photo-item img {
-      width: 180px;
-      height: 120px;
-      object-fit: cover;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .photo-item img:hover {
-      transform: scale(1.05);
-    }
-    .photo-title {
-      display: block;
-      margin-top: 10px;
-      color: #555;
-      font-size: 1rem;
-      font-weight: 500;
-      word-break: break-all;
-    }
-    .preview-modal {
-      position: fixed;
-      left: 0; top: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.65);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-    }
-    .preview-modal img {
-      max-width: 80vw;
-      max-height: 80vh;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
-      background: #fff;
-    }
-    .preview-modal .close {
-      position: absolute;
-      top: 40px;
-      right: 60px;
-      font-size: 2.5rem;
-      color: #fff;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    footer {
-      text-align: center;
-      padding: 32px 0;
-      background: #f2f4fa;
-      color: #999;
-      font-size: 0.95rem;
-      letter-spacing: 1px;
-      border-top: 1px solid #eee;
-    }
-    @keyframes fadeIn {
-      from {opacity:0;}
-      to {opacity:1;}
-    }
-    @media (max-width: 900px) {
-      .container {
-        flex-direction: column;
-        height: auto;
-      }
-      .sidebar {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #eee;
-        box-shadow: none;
-        padding-top: 16px;
-      }
-      main.content {
-        padding: 24px 12px 28px 12px;
-      }
-      .photo-list {
-        justify-content: center;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Dalian DHC System Mail Service</title>
 </head>
 <body>
-  <header>
-    <h1>Gooooday Photos</h1>
-    <div class="header-actions">
-      <button class="upload-btn" onclick="document.getElementById('photo-upload').click()">上传照片</button>
-      <input type="file" id="photo-upload" accept="image/*" style="display:none" multiple onchange="handleFileUpload(event)">
-    </div>
-  </header>
-  <div class="container">
-    <aside class="sidebar">
-      <nav>
-        <ul class="tree-menu">
-          <li>
-            <span class="toggle expanded" onclick="toggleMenu(this)">📁 全部照片</span>
-            <ul class="submenu open">
-              <li><span onclick="showAlbum('all')">全部</span></li>
-            </ul>
-          </li>
-          <li>
-            <span class="toggle" onclick="toggleMenu(this)">📂 分类</span>
-            <ul class="submenu">
-              <li><span onclick="showAlbum('nature')">自然风光</span></li>
-              <li><span onclick="showAlbum('life')">生活纪实</span></li>
-              <li><span onclick="showAlbum('portrait')">人像</span></li>
-            </ul>
-          </li>
-          <li>
-            <span class="toggle" onclick="toggleMenu(this)">📁 年份</span>
-            <ul class="submenu">
-              <li><span onclick="showAlbum('2025')">2025年</span></li>
-              <li><span onclick="showAlbum('2024')">2024年</span></li>
-            </ul>
-          </li>
-        </ul>
-      </nav>
-    </aside>
-    <main class="content" id="content">
-      <section id="album-title" class="content-section active">
-        <h2>全部照片展示</h2>
-        <div id="photo-list" class="photo-list">
-        </div>
-        <div id="preview-modal" class="preview-modal" style="display:none">
-          <span class="close" onclick="closePreview()">&times;</span>
-          <img id="preview-img" src="" alt="预览">
-        </div>
-      </section>
-    </main>
-  </div>
-  <footer>
-    <p>&copy; 2025 Gooooday. 保留所有权利。</p>
-  </footer>
-  <script>
-    // 树形菜单展开/收起
-    function toggleMenu(element) {
-      element.classList.toggle('expanded');
-      const submenu = element.nextElementSibling;
-      if (submenu) submenu.classList.toggle('open');
-    }
+    <h1>Dalian DHC System Mail Service</h1>
 
-    // 相册数据，将通过API获取
-    let albums = {
-      all: [],
-      nature: [],
-      life: [],
-      portrait: [],
-      "2025": [],
-      "2024": []
-    };
+    <p>
+        This application is an internal system tool used to send automated notification emails
+        using the Gmail API.
+    </p>
 
-    // 拉取全部照片
-    function fetchPhotos() {
-      fetch('/api/photos')
-        .then(res => res.json())
-        .then(list => {
-          albums.all = list;
-          // 可根据实际分类扩展
-          albums.nature = list.filter(x => x.title.includes('nature') || x.title.includes('自然'));
-          albums.life = list.filter(x => x.title.includes('life') || x.title.includes('生活'));
-          albums.portrait = list.filter(x => x.title.includes('portrait') || x.title.includes('人像'));
-          albums["2025"] = list.filter(x => x.title.includes('2025'));
-          albums["2024"] = list.filter(x => x.title.includes('2024'));
-          renderPhotos('all');
-        });
-    }
+    <h2>Service Description</h2>
+    <p>
+        The purpose of this application is to send system-generated emails such as:
+    </p>
+    <ul>
+        <li>Task execution results</li>
+        <li>System status notifications</li>
+        <li>Operational alerts</li>
+    </ul>
 
-    // 展示相册
-    function showAlbum(album) {
-      let albumTitle = {
-        all: "全部照片展示",
-        nature: "自然风光照片",
-        life: "生活纪实照片",
-        portrait: "人像照片",
-        "2025": "2025年照片",
-        "2024": "2024年照片"
-      };
-      document.querySelector("#album-title h2").textContent = albumTitle[album] || "照片展示";
-      renderPhotos(album);
-    }
+    <p>
+        All emails are sent only based on explicit user actions or automated tasks configured by the user.
+        This application does NOT read, store, or modify any user emails.
+    </p>
 
-    // 渲染照片列表
-    function renderPhotos(album) {
-      const list = document.getElementById("photo-list");
-      list.innerHTML = "";
-      (albums[album] || []).forEach(photo => {
-        const div = document.createElement("div");
-        div.className = "photo-item";
-        div.innerHTML = `
-          <img src="${photo.url}" alt="${photo.title}" onclick="previewPhoto('${photo.url}')">
-          <span class="photo-title">${photo.title}</span>
-        `;
-        list.appendChild(div);
-      });
-    }
+    <h2>Gmail API Usage</h2>
+    <p>
+        This application only uses the following Gmail API scope:
+    </p>
+    <ul>
+        <li><strong>https://www.googleapis.com/auth/gmail.send</strong></li>
+    </ul>
 
-    // 上传照片（真实上传到服务器，并刷新列表）
-    function handleFileUpload(event) {
-      const files = event.target.files;
-      for (let file of files) {
-        const formData = new FormData();
-        formData.append('photo', file, file.name);
-        fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.url) {
-            fetchPhotos(); // 上传成功后刷新
-          } else {
-            alert('上传失败！');
-          }
-        })
-        .catch(() => alert('上传失败！'));
-      }
-    }
+    <p>
+        The Gmail API is used strictly for sending emails.
+        No email reading, deletion, or modification is performed.
+    </p>
 
-    // 预览照片
-    function previewPhoto(src) {
-      document.getElementById("preview-img").src = src;
-      document.getElementById("preview-modal").style.display = "flex";
-    }
-    function closePreview() {
-      document.getElementById("preview-modal").style.display = "none";
-    }
+    <h2>Operator Information</h2>
+    <p>
+        Operator: Dalian DHC
+    </p>
+    <p>
+        Contact Email: <strong>senkakyou@gmail.com</strong>
+    </p>
 
-    // 初始显示全部照片
-    fetchPhotos();
-  </script>
+    <h2>Legal</h2>
+    <ul>
+        <li>
+            <a href="/privacy.html">Privacy Policy</a>
+        </li>
+        <li>
+            <a href="/terms.html">Terms of Service</a>
+        </li>
+    </ul>
+
+    <hr>
+    <p>Last updated: 2025</p>
 </body>
 </html>
